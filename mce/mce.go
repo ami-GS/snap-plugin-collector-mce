@@ -1,18 +1,20 @@
 package mce
 
 import (
+	"bufio"
 	"os"
+	"time"
 
-	"github.com/intelsdi-x/snap/control/plugin"
-	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
-	"github.com/intelsdi-x/snap/core"
+	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin"
+	//"github.com/intelsdi-x/snap/control/plugin"
+	//"github.com/intelsdi-x/snap/control/plugin/cpolicy"
+	//"github.com/intelsdi-x/snap/core"
 )
 
 const (
-	vendorName    = "ami-GS"
-	pluginName    = "mce"
-	pluginVersion = 0.1
-	pluginType    = plugin.CollectorPluginType
+	vendorName   = "ami-GS"
+	pluginName   = "mce"
+	pluinVersion = 1
 )
 
 var mceLog = "/var/log/mcelog"
@@ -20,67 +22,79 @@ var mceLog = "/var/log/mcelog"
 // for first testing
 const metricAll string = "everything"
 
-type Plugin struct{}
+type MCECollector struct {
+	prevTimeStamp string
+}
 
-func (p *Plugin) GetMetricTypes(_ plugin.ConfigType) ([]plugin.Metric, error) {
+func (p *MCECollector) GetMetricTypes(_ plugin.Config) ([]plugin.Metric, error) {
 	metricTypes := []plugin.Metric{}
+	// TODO : get all metric types
+	//        currently only all logs
 	metricType := plugin.Metric{
-		Namespace_: core.NewNamespace(vendorName, pluginName, metricAll),
+		Namespace: plugin.NewNamespace(vendorName, pluginName, metricAll),
 	}
 	metricTypes = append(metricTypes, metricType)
 
 	return metricTypes, nil
 }
 
-func (p *Plugin) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Metric, error) {
+func (p *MCECollector) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Metric, error) {
 	metrics := []plugin.Metric{}
 
-	for _, metricType := range metricTypes {
-		ns := metricType.Namespace
-
-		metric := plugin.Metric{
-			Namespace: ns,
-		}
-		metrics = append(metrics, metric)
+	fi, err := os.Stat(mceLog)
+	if err != nil {
+		return nil, err
 	}
+	modTime := fi.ModTime().String()
 
+	if p.prevTimeStamp != modTime {
+		p.prevTimeStamp = modTime
+		ts := time.Now()
+		data, err := getParsedData(mceLog)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, metricType := range metricTypes {
+			ns := metricType.Namespace
+			metric := plugin.Metric{
+				Namespace: ns,
+				Data:      data,
+				Timestamp: ts,
+				Version:   pluinVersion,
+			}
+			metrics = append(metrics, metric)
+		}
+	}
 	return metrics, nil
 }
 
-func (p *Plugin) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
-	return cpolicy.New(), nil
+func (p *MCECollector) GetConfigPolicy() (plugin.ConfigPolicy, error) {
+	policy := plugin.NewConfigPolicy()
+	policy.AddNewStringRule([]string{vendorName, "???", pluginName}, "key", false, plugin.SetDefaultString(mceLog))
+	return *policy, nil
 }
 
 // New creates instance of interface info plugin
-func New() *Plugin {
-	fh, err := os.Open(mceLog)
-	if err != nil {
-		// TODO : need to check whether file does not exists or mcelog was not installed
-		return nil
+func New() *MCECollector {
+	return &MCECollector{
+		prevTimeStamp: "",
 	}
-	defer fh.Close()
-
-	hwinfo, err := getBasicHWInfo()
-	if err != nil {
-		return nil
-	}
-
-	return &Plugin{}
 }
 
-func getStats() {}
+func getParsedData(path string) (string, error) {
+	// TODO : return not string, but []???? for each log
+	file, err := os.Open(mceLog)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
 
-func getBasicHWInfo() (*HWinfo, error) {
-	cpuNum := 1
-	dimmNum := 2
-	return &HWinfo{
-		cpuNum:  cpuNum,
-		dimmNum: dimmNum,
-	}, nil
-
-}
-
-type HWinfo struct {
-	cpuNum  int64
-	dimmNum int64
+	var data string
+	sc := bufio.NewScanner(file)
+	for sc.Scan() {
+		// TODO : parser for each metrics
+		data += sc.Text()
+	}
+	return data, nil
 }
