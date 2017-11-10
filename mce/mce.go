@@ -2,6 +2,7 @@ package mce
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"time"
 
@@ -19,22 +20,31 @@ const (
 
 var mceLog = "/var/log/mcelog"
 
-// for first testing
 const metricAll string = "everything"
 
+// for first testing
+var AllMetricsNames []string = []string{
+	"cpu",
+	"memory",
+	"cache",
+	"IO",
+}
+
 type MCECollector struct {
+	// this is used for checking file change
 	prevTimeStamp string
+	// this is decided by mcelog process argument
+	availableMetrics []string
 }
 
 func (p *MCECollector) GetMetricTypes(_ plugin.Config) ([]plugin.Metric, error) {
 	metricTypes := []plugin.Metric{}
-	// TODO : get all metric types
-	//        currently only all logs
-	metricType := plugin.Metric{
-		Namespace: plugin.NewNamespace(vendorName, PluginName, metricAll),
+	for i := 0; i < len(p.availableMetrics); i++ {
+		metricType := plugin.Metric{
+			Namespace: plugin.NewNamespace(vendorName, PluginName, p.availableMetrics[i]),
+		}
+		metricTypes = append(metricTypes, metricType)
 	}
-	metricTypes = append(metricTypes, metricType)
-
 	return metricTypes, nil
 }
 
@@ -43,7 +53,8 @@ func (p *MCECollector) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Met
 
 	fi, err := os.Stat(mceLog)
 	if err != nil {
-		return nil, err
+		fmt.Fprintf(os.Stderr, "k%s was not found, did you instll mcelog?\n", mceLog)
+		return metrics, nil
 	}
 	modTime := fi.ModTime().String()
 
@@ -77,8 +88,11 @@ func (p *MCECollector) GetConfigPolicy() (plugin.ConfigPolicy, error) {
 
 // New creates instance of interface info plugin
 func New() *MCECollector {
+	// TODO : check mcelog process argument, trigger script whether it is avairable metric
+	metrics := []string{"cpu", "memory", metricAll}
 	return &MCECollector{
-		prevTimeStamp: "",
+		prevTimeStamp:    "",
+		availableMetrics: metrics,
 	}
 }
 
@@ -86,6 +100,7 @@ func getParsedData(path string) (string, error) {
 	// TODO : return not string, but []???? for each log
 	file, err := os.Open(mceLog)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, mceLog+" Open \n")
 		return "", err
 	}
 	defer file.Close()
