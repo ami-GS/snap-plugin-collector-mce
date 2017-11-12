@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin"
@@ -61,16 +63,22 @@ func (p *MCECollector) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Met
 	if p.prevTimeStamp != modTime {
 		p.prevTimeStamp = modTime
 		ts := time.Now()
-		data, err := getParsedData(mceLog)
+		mceLogs, err := getMceLog(mceLog, p.prevLogTimeStamp)
 		if err != nil {
 			return nil, err
+		}
+		p.prevLogTimeStamp = mceLogs[len(mceLogs)-1].TIME
+		// TODO : need to consider how to manage several logs
+		data := ""
+		for _, mceLog := range mceLogs {
+			data += mceLog.AsItIs + "\n"
 		}
 
 		for _, metricType := range metricTypes {
 			ns := metricType.Namespace
 			metric := plugin.Metric{
 				Namespace: ns,
-				Data:      data,
+				Data:      data, // TODO : use appropriate telemetry
 				Timestamp: ts,
 				Version:   PluginVersion,
 			}
@@ -96,20 +104,153 @@ func New() *MCECollector {
 	}
 }
 
-func getParsedData(path string) (string, error) {
+type mceLogFormat struct {
+	/*
+	   MCE 0
+	   CPU 1 BANK 2
+	   ADDR 1234
+	   TIME 1510397270 Sat Nov 11 19:47:50 2017
+	   MCG status:
+	   MCi status:
+	   Corrected error
+	   Error enabled
+	   MCi_ADDR register valid
+	   MCA: No Error
+	   STATUS 9400000000000000 MCGSTATUS 0
+	   MCGCAP 7000c16 APICID 2 SOCKETID 0
+	   CPUID Vendor Intel Family 6 Model 79
+	*/
+	MCE       uint8
+	CPU       uint8
+	BANK      uint8
+	ADDR      uint64
+	TIME      uint32
+	TIMESTR   string
+	MCG       string
+	MCi       string
+	Corrected bool
+	Error     string //???enabled?
+	MCiADDR   string //???
+	STATUS    uint64
+	MCGSTATUS uint16
+	MCGCAP    uint32
+	APICID    uint16
+	SOCKETID  uint8
+	CPUID     string
+	AsItIs    string // will be removed, for /everything
+}
+
+func getMceLog(path string, lastLogTime uint32) ([]mceLogFormat, error) {
 	// TODO : return not string, but []???? for each log
 	file, err := os.Open(mceLog)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, mceLog+" Open \n")
-		return "", err
+		return nil, err
 	}
 	defer file.Close()
 
-	var data string
+	start := false
 	sc := bufio.NewScanner(file)
+	mcelogs := []mceLogFormat{}
+	onelog := mceLogFormat{}
 	for sc.Scan() {
-		// TODO : parser for each metrics
-		data += sc.Text()
+		data := sc.Text()
+		// 1. separate each entry by "Hardware event. This is not a software error."
+		if data == "Hardware event. This is not a software error." {
+			if start {
+				mcelogs = append(mcelogs, onelog)
+			}
+			onelog = mceLogFormat{} // reset
+			onelog.AsItIs += data + "\n"
+			start = true
+			continue
+		}
+		if !start {
+			// reduce nest depth
+			continue
+		}
+		onelog.AsItIs += data + "\n"
+		dat := strings.Split(data, " ")
+		for i := 0; i < len(dat); i += 2 {
+			switch dat[i] {
+			case "MCE":
+				d, err := strconv.Atoi(dat[i+1])
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
+				}
+				onelog.MCE = uint8(d)
+			case "CPU":
+				d, err := strconv.Atoi(dat[i+1])
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
+				}
+				onelog.CPU = uint8(d)
+			case "BANK":
+				d, err := strconv.Atoi(dat[i+1])
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
+				}
+				onelog.BANK = uint8(d)
+			case "ADDR":
+				d, err := strconv.Atoi(dat[i+1])
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
+				}
+				onelog.ADDR = uint64(d)
+			case "TIME":
+				d, err := strconv.Atoi(dat[i+1])
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
+				}
+				// 2. compare "TIME 1510397388 Sat Nov 11 19:49:48 2017" lines and previously saved.
+				logTime := uint32(d)
+				if logTime <= lastLogTime {
+					start = false
+					break
+				}
+				onelog.TIME = logTime
+				onelog.TIMESTR = strings.Join(dat[i+1:i+6], " ")
+			case "STATUS":
+				d, err := strconv.Atoi(dat[i+1])
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
+				}
+				onelog.STATUS = uint64(d)
+			case "MCGSTATUS":
+				d, err := strconv.Atoi(dat[i+1])
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
+				}
+				onelog.MCGSTATUS = uint16(d)
+			case "MCGCAP":
+				d, err := strconv.Atoi(dat[i+1])
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
+				}
+				onelog.MCGCAP = uint32(d)
+			case "APICID":
+				d, err := strconv.Atoi(dat[i+1])
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
+				}
+				onelog.APICID = uint16(d)
+			case "SOCKETID":
+				d, err := strconv.Atoi(dat[i+1])
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
+				}
+				onelog.SOCKETID = uint8(d)
+			case "CPUID":
+				// assumeing this is last line
+				onelog.CPUID = strings.Join(dat[i+1:], " ")
+				start = false
+			case "MCG":
+			case "MCi":
+			case "MCA":
+			default:
+				fmt.Fprintf(os.Stdout, "not supported")
+			}
+		}
 	}
-	return data, nil
+	return mcelogs, nil
 }
