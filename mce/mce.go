@@ -25,7 +25,7 @@ var mceLog = "/var/log/mcelog"
 const metricAll string = "everything"
 
 // for first testing
-var AllMetricsNames []string = []string{
+var AllMetricsNames = []string{
 	"cpu",
 	"memory",
 	"cache",
@@ -34,7 +34,9 @@ var AllMetricsNames []string = []string{
 
 type MCECollector struct {
 	// this is used for checking file change
-	prevTimeStamp string
+	prevFileTimeStamp string
+	// this is used for picking up latest log
+	prevLogTimeStamp uint32
 	// this is decided by mcelog process argument
 	availableMetrics []string
 }
@@ -55,13 +57,13 @@ func (p *MCECollector) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Met
 
 	fi, err := os.Stat(mceLog)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "k%s was not found, did you instll mcelog?\n", mceLog)
+		fmt.Fprintf(os.Stderr, "%s was not found, did you instll mcelog?\n", mceLog)
 		return metrics, nil
 	}
 	modTime := fi.ModTime().String()
 
-	if p.prevTimeStamp != modTime {
-		p.prevTimeStamp = modTime
+	if p.prevFileTimeStamp != modTime {
+		p.prevFileTimeStamp = modTime
 		ts := time.Now()
 		mceLogs, err := getMceLog(mceLog, p.prevLogTimeStamp)
 		if err != nil {
@@ -96,10 +98,11 @@ func (p *MCECollector) GetConfigPolicy() (plugin.ConfigPolicy, error) {
 
 // New creates instance of interface info plugin
 func New() *MCECollector {
-	// TODO : check mcelog process argument, trigger script whether it is avairable metric
 	metrics := []string{"cpu", "memory", metricAll}
 	return &MCECollector{
-		prevTimeStamp:    "",
+		prevFileTimeStamp: "",
+		prevLogTimeStamp:  0,
+		// TODO : check mcelog process argument, trigger script whether it is avairable metric
 		availableMetrics: metrics,
 	}
 }
