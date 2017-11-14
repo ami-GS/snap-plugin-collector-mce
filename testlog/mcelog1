@@ -1,0 +1,15 @@
+mcelog: failed to prefill DIMM database from DMI data
+Hardware event. This is not a software error.
+MCE 0
+CPU 0 BANK 1 
+ADDR abcd 
+TIME 1509399413 Tue Oct 31 06:36:53 2017
+MCG status:
+MCi status:
+Corrected error
+Error enabled
+MCi_ADDR register valid
+MCA: No Error
+STATUS 9400000000000000 MCGSTATUS 0
+MCGCAP 7000c16 APICID 0 SOCKETID 0 
+CPUID Vendor Intel Family 6 Model 79
