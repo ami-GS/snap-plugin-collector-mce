@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	vendorName    = "ami-GS"
+	VendorName    = "ami-GS"
 	PluginName    = "mce"
 	PluginVersion = 1
 )
@@ -45,7 +45,7 @@ func (p *MCECollector) GetMetricTypes(_ plugin.Config) ([]plugin.Metric, error) 
 	metricTypes := []plugin.Metric{}
 	for i := 0; i < len(p.availableMetrics); i++ {
 		metricType := plugin.Metric{
-			Namespace: plugin.NewNamespace(vendorName, PluginName, p.availableMetrics[i]),
+			Namespace: plugin.NewNamespace(VendorName, PluginName, p.availableMetrics[i]),
 		}
 		metricTypes = append(metricTypes, metricType)
 	}
@@ -92,7 +92,7 @@ func (p *MCECollector) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Met
 
 func (p *MCECollector) GetConfigPolicy() (plugin.ConfigPolicy, error) {
 	policy := plugin.NewConfigPolicy()
-	policy.AddNewStringRule([]string{vendorName, "???", PluginName}, "key", false, plugin.SetDefaultString(mceLog))
+	policy.AddNewStringRule([]string{VendorName, "???", PluginName}, "key", false, plugin.SetDefaultString(mceLog))
 	return *policy, nil
 }
 
