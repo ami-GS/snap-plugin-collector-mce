@@ -145,7 +145,7 @@ type mceLogFormat struct {
 
 func getMceLog(path string, lastLogTime uint32) ([]mceLogFormat, error) {
 	// TODO : return not string, but []???? for each log
-	file, err := os.Open(mceLog)
+	file, err := os.Open(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, mceLog+" Open \n")
 		return nil, err
