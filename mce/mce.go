@@ -126,7 +126,7 @@ type mceLogFormat struct {
 	MCE       uint8
 	CPU       uint8
 	BANK      uint8
-	ADDR      uint64
+	ADDR      string // temporaly
 	TIME      uint32
 	TIMESTR   string
 	MCG       string
@@ -136,7 +136,7 @@ type mceLogFormat struct {
 	MCiADDR   string //???
 	STATUS    uint64
 	MCGSTATUS uint16
-	MCGCAP    uint32
+	MCGCAP    string // temporaly
 	APICID    uint16
 	SOCKETID  uint8
 	CPUID     string
@@ -195,11 +195,7 @@ func getMceLog(path string, lastLogTime uint32) ([]mceLogFormat, error) {
 				}
 				onelog.BANK = uint8(d)
 			case "ADDR":
-				d, err := strconv.Atoi(dat[i+1])
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
-				}
-				onelog.ADDR = uint64(d)
+				onelog.ADDR = dat[i+1]
 			case "TIME":
 				d, err := strconv.Atoi(dat[i+1])
 				if err != nil {
@@ -226,11 +222,7 @@ func getMceLog(path string, lastLogTime uint32) ([]mceLogFormat, error) {
 				}
 				onelog.MCGSTATUS = uint16(d)
 			case "MCGCAP":
-				d, err := strconv.Atoi(dat[i+1])
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
-				}
-				onelog.MCGCAP = uint32(d)
+				onelog.MCGCAP = dat[i+1]
 			case "APICID":
 				d, err := strconv.Atoi(dat[i+1])
 				if err != nil {
