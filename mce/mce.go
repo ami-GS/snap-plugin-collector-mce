@@ -66,6 +66,7 @@ func (p *MCECollector) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Met
 		p.prevFileTimeStamp = modTime
 		ts := time.Now()
 		mceLogs, err := getMceLog(mceLog, p.prevLogTimeStamp)
+		// TODO : not here
 		if err != nil {
 			return nil, err
 		}
@@ -157,7 +158,7 @@ func getMceLog(path string, lastLogTime uint32) ([]mceLogFormat, error) {
 	mcelogs := []mceLogFormat{}
 	onelog := mceLogFormat{}
 	for sc.Scan() {
-		data := sc.Text()
+		data := strings.TrimSpace(sc.Text())
 		// 1. separate each entry by "Hardware event. This is not a software error."
 		if data == "Hardware event. This is not a software error." {
 			if start {
@@ -179,19 +180,19 @@ func getMceLog(path string, lastLogTime uint32) ([]mceLogFormat, error) {
 			case "MCE":
 				d, err := strconv.Atoi(dat[i+1])
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
+					fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
 				}
 				onelog.MCE = uint8(d)
 			case "CPU":
 				d, err := strconv.Atoi(dat[i+1])
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
+					fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
 				}
 				onelog.CPU = uint8(d)
 			case "BANK":
 				d, err := strconv.Atoi(dat[i+1])
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
+					fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
 				}
 				onelog.BANK = uint8(d)
 			case "ADDR":
@@ -199,26 +200,27 @@ func getMceLog(path string, lastLogTime uint32) ([]mceLogFormat, error) {
 			case "TIME":
 				d, err := strconv.Atoi(dat[i+1])
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
+					fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
 				}
 				// 2. compare "TIME 1510397388 Sat Nov 11 19:49:48 2017" lines and previously saved.
 				logTime := uint32(d)
 				if logTime <= lastLogTime {
 					start = false
-					break
+					goto OUT
 				}
 				onelog.TIME = logTime
 				onelog.TIMESTR = strings.Join(dat[i+1:i+6], " ")
+				goto OUT
 			case "STATUS":
 				d, err := strconv.Atoi(dat[i+1])
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
+					fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
 				}
 				onelog.STATUS = uint64(d)
 			case "MCGSTATUS":
 				d, err := strconv.Atoi(dat[i+1])
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
+					fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
 				}
 				onelog.MCGSTATUS = uint16(d)
 			case "MCGCAP":
@@ -226,26 +228,30 @@ func getMceLog(path string, lastLogTime uint32) ([]mceLogFormat, error) {
 			case "APICID":
 				d, err := strconv.Atoi(dat[i+1])
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
+					fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
 				}
 				onelog.APICID = uint16(d)
 			case "SOCKETID":
 				d, err := strconv.Atoi(dat[i+1])
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s format error", dat[i])
+					fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
 				}
 				onelog.SOCKETID = uint8(d)
 			case "CPUID":
 				// assumeing this is last line
 				onelog.CPUID = strings.Join(dat[i+1:], " ")
+				mcelogs = append(mcelogs, onelog)
 				start = false
+				goto OUT
 			case "MCG":
 			case "MCi":
 			case "MCA":
 			default:
-				fmt.Fprintf(os.Stdout, "not supported")
+				fmt.Fprintf(os.Stdout, "%s not supported\n", dat[i])
 			}
 		}
+	OUT:
 	}
+
 	return mcelogs, nil
 }
