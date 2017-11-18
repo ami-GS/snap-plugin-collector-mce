@@ -1,0 +1,13 @@
+sudo: false
+language: go
+go:
+- 1.7.x
+- 1.8.x
+before_install:
+  go get -t ./...
+install:
+- make deps
+script:
+- go test -t ./mce 2>&1
+notifications:
+  email: false
