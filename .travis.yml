@@ -6,7 +6,7 @@ go:
 before_install:
   go get -t ./...
 install:
-- make deps
+- go build
 script:
 - go test -t ./mce 2>&1
 notifications:
