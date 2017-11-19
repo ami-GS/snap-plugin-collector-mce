@@ -8,6 +8,6 @@ before_install:
 install:
 - go build
 script:
-- go test -t ./mce 2>&1
+- go test -v ./mce 2>&1
 notifications:
   email: false
