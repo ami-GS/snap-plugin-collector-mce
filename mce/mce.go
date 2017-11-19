@@ -20,7 +20,7 @@ const (
 	PluginVersion = 1
 )
 
-var mceLog = "/var/log/mcelog"
+var MceLogPath = "/var/log/mcelog"
 
 const metricAll string = "everything"
 
@@ -39,6 +39,8 @@ type MCECollector struct {
 	prevLogTimeStamp uint32
 	// this is decided by mcelog process argument
 	availableMetrics []string
+	// this would be mceLog
+	logPath string
 }
 
 func (p *MCECollector) GetMetricTypes(_ plugin.Config) ([]plugin.Metric, error) {
@@ -55,9 +57,9 @@ func (p *MCECollector) GetMetricTypes(_ plugin.Config) ([]plugin.Metric, error) 
 func (p *MCECollector) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Metric, error) {
 	metrics := []plugin.Metric{}
 
-	fi, err := os.Stat(mceLog)
+	fi, err := os.Stat(p.logPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s was not found, did you instll mcelog?\n", mceLog)
+		fmt.Fprintf(os.Stderr, "%s was not found, did you instll mcelog?\n", p.logPath)
 		return metrics, nil
 	}
 	modTime := fi.ModTime().String()
@@ -65,12 +67,10 @@ func (p *MCECollector) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Met
 	if p.prevFileTimeStamp != modTime {
 		p.prevFileTimeStamp = modTime
 		ts := time.Now()
-		mceLogs, err := getMceLog(mceLog, p.prevLogTimeStamp)
-		// TODO : not here
+		mceLogs, err := p.GetMceLog()
 		if err != nil {
 			return nil, err
 		}
-		p.prevLogTimeStamp = mceLogs[len(mceLogs)-1].TIME
 		// TODO : need to consider how to manage several logs
 		data := ""
 		for _, mceLog := range mceLogs {
@@ -93,22 +93,23 @@ func (p *MCECollector) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Met
 
 func (p *MCECollector) GetConfigPolicy() (plugin.ConfigPolicy, error) {
 	policy := plugin.NewConfigPolicy()
-	policy.AddNewStringRule([]string{VendorName, "???", PluginName}, "key", false, plugin.SetDefaultString(mceLog))
+	policy.AddNewStringRule([]string{VendorName, "???", PluginName}, "key", false, plugin.SetDefaultString(p.logPath))
 	return *policy, nil
 }
 
 // New creates instance of interface info plugin
-func New() *MCECollector {
+func New(logPath string) *MCECollector {
 	metrics := []string{"cpu", "memory", metricAll}
 	return &MCECollector{
 		prevFileTimeStamp: "",
 		prevLogTimeStamp:  0,
 		// TODO : check mcelog process argument, trigger script whether it is avairable metric
 		availableMetrics: metrics,
+		logPath:          logPath,
 	}
 }
 
-type mceLogFormat struct {
+type MceLogFormat struct {
 	/*
 	   MCE 0
 	   CPU 1 BANK 2
@@ -144,19 +145,30 @@ type mceLogFormat struct {
 	AsItIs    string // will be removed, for /everything
 }
 
-func getMceLog(path string, lastLogTime uint32) ([]mceLogFormat, error) {
+func (p *MCECollector) GetMceLog() ([]MceLogFormat, error) {
+	logs, err := parseMceLogByTime(p.logPath, p.prevLogTimeStamp)
+	if err != nil {
+		return nil, err
+	}
+	if len(logs) > 0 {
+		p.prevLogTimeStamp = logs[len(logs)-1].TIME
+	}
+	return logs, err
+}
+
+func parseMceLogByTime(path string, lastLogTime uint32) ([]MceLogFormat, error) {
 	// TODO : return not string, but []???? for each log
 	file, err := os.Open(path)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, mceLog+" Open \n")
+		fmt.Fprintf(os.Stderr, path+" Open \n")
 		return nil, err
 	}
 	defer file.Close()
 
 	start := false
 	sc := bufio.NewScanner(file)
-	mcelogs := []mceLogFormat{}
-	onelog := mceLogFormat{}
+	mcelogs := []MceLogFormat{}
+	onelog := MceLogFormat{}
 	for sc.Scan() {
 		data := strings.TrimSpace(sc.Text())
 		// 1. separate each entry by "Hardware event. This is not a software error."
@@ -164,7 +176,7 @@ func getMceLog(path string, lastLogTime uint32) ([]mceLogFormat, error) {
 			if start {
 				mcelogs = append(mcelogs, onelog)
 			}
-			onelog = mceLogFormat{} // reset
+			onelog = MceLogFormat{} // reset
 			onelog.AsItIs += data + "\n"
 			start = true
 			continue

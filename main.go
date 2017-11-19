@@ -6,6 +6,6 @@ import (
 )
 
 func main() {
-	plugin.StartCollector(mce.New(), mce.PluginName, mce.PluginVersion, plugin.ConcurrencyCount(1))
+	plugin.StartCollector(mce.New(mce.MceLogPath), mce.PluginName, mce.PluginVersion, plugin.ConcurrencyCount(1))
 
 }
