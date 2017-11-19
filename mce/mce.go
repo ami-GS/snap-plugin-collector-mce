@@ -62,8 +62,8 @@ func (p *MCECollector) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Met
 		fmt.Fprintf(os.Stderr, "%s was not found, did you instll mcelog?\n", p.logPath)
 		return metrics, nil
 	}
+	// TODO : here would be in GetMceLog()?
 	modTime := fi.ModTime().String()
-
 	if p.prevFileTimeStamp != modTime {
 		p.prevFileTimeStamp = modTime
 		ts := time.Now()
@@ -128,6 +128,7 @@ type MceLogFormat struct {
 	MCE       uint8
 	CPU       uint8
 	BANK      uint8
+	MISC      uint16
 	ADDR      string // temporaly
 	TIME      uint32
 	TIMESTR   string
@@ -135,7 +136,10 @@ type MceLogFormat struct {
 	MCi       string
 	Corrected bool
 	Error     string //???enabled?
+	MCiMISC   string //???
 	MCiADDR   string //???
+	MCA       string
+	CACHE     string
 	STATUS    uint64
 	MCGSTATUS uint16
 	MCGCAP    string // temporaly
@@ -207,6 +211,12 @@ func parseMceLogByTime(path string, lastLogTime uint32) ([]MceLogFormat, error) 
 					fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
 				}
 				onelog.BANK = uint8(d)
+			case "MISC":
+				d, err := strconv.Atoi(dat[i+1])
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
+				}
+				onelog.MISC = uint16(d)
 			case "ADDR":
 				onelog.ADDR = dat[i+1]
 			case "TIME":
@@ -223,6 +233,10 @@ func parseMceLogByTime(path string, lastLogTime uint32) ([]MceLogFormat, error) 
 				onelog.TIME = logTime
 				onelog.TIMESTR = strings.Join(dat[i+1:i+6], " ")
 				goto OUT
+			case "Corrected":
+				onelog.Corrected = true
+			case "Uncorrected":
+				onelog.Corrected = false
 			case "STATUS":
 				d, err := strconv.Atoi(dat[i+1])
 				if err != nil {
@@ -255,9 +269,17 @@ func parseMceLogByTime(path string, lastLogTime uint32) ([]MceLogFormat, error) 
 				mcelogs = append(mcelogs, onelog)
 				start = false
 				goto OUT
+			case "MCA:":
+				onelog.MCA = strings.Join(dat[i+1:], " ")
+				goto OUT
+			case "Generic":
+				onelog.CACHE = strings.Join(dat[i+i:], " ")
+				goto OUT
+			case "MCi_ADDR":
+				onelog.MCiADDR = strings.Join(dat[i+1:], " ")
+				goto OUT
 			case "MCG":
 			case "MCi":
-			case "MCA":
 			default:
 				fmt.Fprintf(os.Stdout, "%s not supported\n", dat[i])
 			}
