@@ -88,15 +88,18 @@ func (p *MCECollector) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Met
 	return metrics, nil
 }
 
-func (p *MCECollector) GetConfigPolicy() (plugin.ConfigPolicy, error) {
+func (p *MCECollector) GetConfigPolicy() (*plugin.ConfigPolicy, error) {
 	policy := plugin.NewConfigPolicy()
-	policy.AddNewStringRule([]string{VendorName, "???", PluginName}, "key", false, plugin.SetDefaultString(p.logPath))
-	return *policy, nil
+	err := policy.AddNewStringRule([]string{VendorName, "var/log", PluginName}, "key", false, plugin.SetDefaultString(p.logPath))
+	if err != nil {
+		return nil, err
+	}
+	return policy, nil
 }
 
 // New creates instance of interface info plugin
 func New(logPath string) *MCECollector {
-	metrics := []string{"cpu", "memory", metricAll}
+	metrics := append(AllMetricsNames, metricAll)
 	return &MCECollector{
 		prevFileTimeStamp: "",
 		prevLogTimeStamp:  0,
@@ -106,6 +109,7 @@ func New(logPath string) *MCECollector {
 	}
 }
 
+// TODO : map[string]string would be better for CollectMetrics
 type MceLogFormat struct {
 	/*
 	   MCE 0
