@@ -21,12 +21,14 @@ var MceLogPath = "/var/log/mcelog"
 
 const metricAll string = "everything"
 
-// for first testing
+// AllMetricsNames : for first testing
 var AllMetricsNames = []string{
-	"cpu",
-	"memory",
-	"cache",
-	"IO",
+	// TODO : enable CPU/0, CPU/1, ADDR/0x1234, like metrics
+	"CPU",
+	"ADDR",
+	"BANK",
+	"Corrected",
+	"Uncorrected",
 }
 
 type MCECollector struct {
