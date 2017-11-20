@@ -56,15 +56,11 @@ func (p *MCECollector) GetMetricTypes(_ plugin.Config) ([]plugin.Metric, error) 
 func (p *MCECollector) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Metric, error) {
 	metrics := []plugin.Metric{}
 
-	fi, err := os.Stat(p.logPath)
+	ok, err := p.WasFileUpdated()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s was not found, did you instll mcelog?\n", p.logPath)
-		return metrics, nil
+		return nil, err
 	}
-	// TODO : here would be in GetMceLog()?
-	modTime := fi.ModTime().String()
-	if p.prevFileTimeStamp != modTime {
-		p.prevFileTimeStamp = modTime
+	if ok {
 		ts := time.Now()
 		mceLogs, err := p.GetMceLog()
 		if err != nil {
@@ -287,4 +283,19 @@ func parseMceLogByTime(path string, lastLogTime uint32) ([]MceLogFormat, error) 
 	}
 
 	return mcelogs, nil
+}
+
+func (p *MCECollector) WasFileUpdated() (bool, error) {
+	fi, err := os.Stat(p.logPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s was not found, did you instll mcelog?\n", p.logPath)
+		return false, err
+	}
+
+	modTime := fi.ModTime().String()
+	if modTime != p.prevFileTimeStamp {
+		p.prevFileTimeStamp = modTime
+		return true, nil
+	}
+	return false, nil
 }

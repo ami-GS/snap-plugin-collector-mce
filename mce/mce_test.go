@@ -9,6 +9,8 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+var mceLogPrefix = "../testlog/"
+
 /*
 func TestGetMetricTypes(t *testing.T) {
 	Convey("if mcelog --daemon without any trigger setting enabled", t, func() {
@@ -16,7 +18,6 @@ func TestGetMetricTypes(t *testing.T) {
 }
 */
 func TestGetMceLog(t *testing.T) {
-	mceLogPrefix := "../testlog/"
 	Convey("if this is first call (), then returns all parsed info", t, func() {
 		logfile := mceLogPrefix + "mcelog1"
 		m := New(logfile)
@@ -94,4 +95,28 @@ func TestGetMceLog(t *testing.T) {
 				mcelogs[0].AsItIs
 			})
 	*/
+}
+
+func TestWasFileUpdated(t *testing.T) {
+	Convey("if first call, return true, nil", t, func() {
+		m := New(mceLogPrefix + "mcelog1")
+		ok, err := m.WasFileUpdated()
+		So(ok, ShouldBeTrue)
+		So(err, ShouldBeNil)
+	})
+	Convey("if no update, return false, nil", t, func() {
+		m := New(mceLogPrefix + "mcelog1")
+		ok, err := m.WasFileUpdated()
+		ok, err = m.WasFileUpdated()
+		So(ok, ShouldBeFalse)
+		So(err, ShouldBeNil)
+	})
+	Convey("if update, return true, nil", t, func() {
+		m := New(mceLogPrefix + "mcelog1")
+		ok, err := m.WasFileUpdated()
+		m.logPath = mceLogPrefix + "mcelog2"
+		ok, err = m.WasFileUpdated()
+		So(ok, ShouldBeTrue)
+		So(err, ShouldBeNil)
+	})
 }
