@@ -66,14 +66,16 @@ func (p *MCECollector) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Met
 		if err != nil {
 			return nil, err
 		}
-		// TODO : need to consider how to manage several logs
-		data := ""
-		for _, mceLog := range mceLogs {
-			data += mceLog.AsItIs + "\n"
-		}
-
 		for _, metricType := range metricTypes {
 			ns := metricType.Namespace
+			// TODO : smarter method.
+			data := ""
+			for _, log := range mceLogs {
+				val := ns[len(ns)-1].Value
+				if strings.Contains(val, log.AsItIs) || val == metricAll {
+					data += log.AsItIs + "\n"
+				}
+			}
 			metric := plugin.Metric{
 				Namespace: ns,
 				Data:      data, // TODO : use appropriate telemetry
