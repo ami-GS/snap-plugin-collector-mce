@@ -88,13 +88,13 @@ func (p *MCECollector) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Met
 	return metrics, nil
 }
 
-func (p *MCECollector) GetConfigPolicy() (*plugin.ConfigPolicy, error) {
+func (p *MCECollector) GetConfigPolicy() (plugin.ConfigPolicy, error) {
 	policy := plugin.NewConfigPolicy()
 	err := policy.AddNewStringRule([]string{VendorName, "var/log", PluginName}, "key", false, plugin.SetDefaultString(p.logPath))
 	if err != nil {
-		return nil, err
+		return *policy, err
 	}
-	return policy, nil
+	return *policy, nil
 }
 
 // New creates instance of interface info plugin
