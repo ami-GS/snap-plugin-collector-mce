@@ -62,31 +62,39 @@ func (p *MCECollector) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Met
 		return nil, err
 	}
 	if ok {
-		ts := time.Now()
 		mceLogs, err := p.GetMceLog()
 		if err != nil {
 			return nil, err
 		}
-		for _, metricType := range metricTypes {
-			ns := metricType.Namespace
-			// TODO : smarter method.
-			data := ""
-			for _, log := range mceLogs {
-				val := ns[len(ns)-1].Value
-				if strings.Contains(val, log.AsItIs) || val == metricAll {
-					data += log.AsItIs + "\n"
-				}
-			}
-			metric := plugin.Metric{
-				Namespace: ns,
-				Data:      data, // TODO : use appropriate telemetry
-				Timestamp: ts,
-				Version:   PluginVersion,
-			}
-			metrics = append(metrics, metric)
+		if len(mceLogs) == 0 {
+			return metrics, nil
 		}
+		metrics = StuffLogToMetrics(mceLogs, metricTypes)
 	}
 	return metrics, nil
+}
+
+func StuffLogToMetrics(mceLogs []MceLogFormat, metricIn []plugin.Metric) (metricOut []plugin.Metric) {
+	ts := time.Now()
+	for _, metricType := range metricIn {
+		ns := metricType.Namespace
+		// TODO : smarter method.
+		data := ""
+		for _, log := range mceLogs {
+			val := ns[len(ns)-1].Value
+			if strings.Contains(val, log.AsItIs) || val == MetricAll {
+				data += log.AsItIs + "\n"
+			}
+		}
+		metric := plugin.Metric{
+			Namespace: ns,
+			Data:      data, // TODO : use appropriate telemetry
+			Timestamp: ts,
+			Version:   PluginVersion,
+		}
+		metricOut = append(metricOut, metric)
+	}
+	return metricOut
 }
 
 func (p *MCECollector) GetConfigPolicy() (plugin.ConfigPolicy, error) {
