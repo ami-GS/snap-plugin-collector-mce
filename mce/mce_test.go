@@ -57,11 +57,11 @@ func TestGetMceLog(t *testing.T) {
 		m := New(mceLogPrefix + "mcelog1")
 		mcelogs, err := m.GetMceLog()
 		So(err, ShouldBeNil)
-		m.logPath = mceLogPrefix + "mcelog2"
+		m.LogPath = mceLogPrefix + "mcelog2"
 		mcelogs, err = m.GetMceLog()
 		So(err, ShouldBeNil)
 		So(len(mcelogs), ShouldEqual, 1)
-		file, err := os.Open(m.logPath)
+		file, err := os.Open(m.LogPath)
 		So(err, ShouldBeNil)
 		defer file.Close()
 		sc := bufio.NewScanner(file)
@@ -114,7 +114,7 @@ func TestWasFileUpdated(t *testing.T) {
 	Convey("if update, return true, nil", t, func() {
 		m := New(mceLogPrefix + "mcelog1")
 		ok, err := m.WasFileUpdated()
-		m.logPath = mceLogPrefix + "mcelog2"
+		m.LogPath = mceLogPrefix + "mcelog2"
 		ok, err = m.WasFileUpdated()
 		So(ok, ShouldBeTrue)
 		So(err, ShouldBeNil)

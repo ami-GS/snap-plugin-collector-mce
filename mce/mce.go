@@ -19,7 +19,7 @@ const (
 
 var MceLogPath = "/var/log/mcelog"
 
-const metricAll string = "everything"
+const MetricAll string = "everything"
 
 // AllMetricsNames : for first testing
 var AllMetricsNames = []string{
@@ -27,6 +27,7 @@ var AllMetricsNames = []string{
 	"CPU",
 	"ADDR",
 	"BANK",
+	"THERMAL",
 	"Corrected",
 	"Uncorrected",
 }
@@ -39,7 +40,7 @@ type MCECollector struct {
 	// this is decided by mcelog process argument
 	availableMetrics []string
 	// this would be mceLog
-	logPath string
+	LogPath string
 }
 
 func (p *MCECollector) GetMetricTypes(_ plugin.Config) ([]plugin.Metric, error) {
@@ -90,7 +91,7 @@ func (p *MCECollector) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Met
 
 func (p *MCECollector) GetConfigPolicy() (plugin.ConfigPolicy, error) {
 	policy := plugin.NewConfigPolicy()
-	err := policy.AddNewStringRule([]string{VendorName, "var/log", PluginName}, "key", false, plugin.SetDefaultString(p.logPath))
+	err := policy.AddNewStringRule([]string{VendorName, "var/log", PluginName}, "key", false, plugin.SetDefaultString(p.LogPath))
 	if err != nil {
 		return *policy, err
 	}
@@ -99,13 +100,13 @@ func (p *MCECollector) GetConfigPolicy() (plugin.ConfigPolicy, error) {
 
 // New creates instance of interface info plugin
 func New(logPath string) *MCECollector {
-	metrics := append(AllMetricsNames, metricAll)
+	metrics := append(AllMetricsNames, MetricAll)
 	return &MCECollector{
 		prevFileTimeStamp: "",
 		prevLogTimeStamp:  0,
 		// TODO : check mcelog process argument, trigger script whether it is avairable metric
 		availableMetrics: metrics,
-		logPath:          logPath,
+		LogPath:          logPath,
 	}
 }
 
@@ -151,7 +152,7 @@ type MceLogFormat struct {
 }
 
 func (p *MCECollector) GetMceLog() ([]MceLogFormat, error) {
-	logs, err := parseMceLogByTime(p.logPath, p.prevLogTimeStamp)
+	logs, err := parseMceLogByTime(p.LogPath, p.prevLogTimeStamp)
 	if err != nil {
 		return nil, err
 	}
@@ -292,9 +293,9 @@ func parseMceLogByTime(path string, lastLogTime uint32) ([]MceLogFormat, error) 
 }
 
 func (p *MCECollector) WasFileUpdated() (bool, error) {
-	fi, err := os.Stat(p.logPath)
+	fi, err := os.Stat(p.LogPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s was not found, did you instll mcelog?\n", p.logPath)
+		fmt.Fprintf(os.Stderr, "%s was not found, did you instll mcelog?\n", p.LogPath)
 		return false, err
 	}
 
