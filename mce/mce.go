@@ -17,6 +17,7 @@ const (
 	PluginVersion = 1
 )
 
+// default logPath
 var MceLogPath = "/var/log/mcelog"
 
 const MetricAll string = "everything"
@@ -29,7 +30,8 @@ var AllMetricsNames = []string{
 	"BANK",
 	"THERMAL",
 	"Corrected",
-	"Uncorrected",
+	// for user defined search
+	"Includes",
 }
 
 type MCECollector struct {
@@ -45,11 +47,24 @@ type MCECollector struct {
 
 func (p *MCECollector) GetMetricTypes(_ plugin.Config) ([]plugin.Metric, error) {
 	metricTypes := []plugin.Metric{}
-	for i := 0; i < len(p.availableMetrics); i++ {
-		metricType := plugin.Metric{
-			Namespace: plugin.NewNamespace(VendorName, PluginName, p.availableMetrics[i]),
+	//for i := 0; i < len(p.availableMetrics); i++ {
+	for _, val := range p.availableMetrics {
+		if val == "Includes" {
+			for _, valIn := range p.availableMetrics {
+				//if val != "Includes" || val != MetricAll {
+				if valIn != "Includes" && valIn != MetricAll {
+					metricType := plugin.Metric{
+						Namespace: plugin.NewNamespace(VendorName, PluginName, "Includes", valIn),
+					}
+					metricTypes = append(metricTypes, metricType)
+				}
+			}
+		} else {
+			metricType := plugin.Metric{
+				Namespace: plugin.NewNamespace(VendorName, PluginName, val),
+			}
+			metricTypes = append(metricTypes, metricType)
 		}
-		metricTypes = append(metricTypes, metricType)
 	}
 	return metricTypes, nil
 }
@@ -74,16 +89,21 @@ func (p *MCECollector) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Met
 	return metrics, nil
 }
 
-func StuffLogToMetrics(mceLogs []MceLogFormat, metricIn []plugin.Metric) (metricOut []plugin.Metric) {
+func StuffLogToMetrics(mceLogs []MceLogInfo, metricIn []plugin.Metric) (metricOut []plugin.Metric) {
 	ts := time.Now()
 	for _, metricType := range metricIn {
 		ns := metricType.Namespace
 		// TODO : smarter method.
 		data := ""
 		for _, log := range mceLogs {
-			val := ns[len(ns)-1].Value
-			if strings.Contains(val, log.AsItIs) || val == MetricAll {
+			key := ns[len(ns)-1].Value
+			if ns[len(ns)-2].Value == "Includes" || key == MetricAll {
 				data += log.AsItIs + "\n"
+				continue
+			}
+			val, ok := log.data[key]
+			if ok {
+				data += val
 			}
 		}
 		metric := plugin.Metric{
@@ -118,59 +138,42 @@ func New(logPath string) *MCECollector {
 	}
 }
 
-// TODO : map[string]string would be better for CollectMetrics
-type MceLogFormat struct {
-	/*
-	   MCE 0
-	   CPU 1 BANK 2
-	   ADDR 1234
-	   TIME 1510397270 Sat Nov 11 19:47:50 2017
-	   MCG status:
-	   MCi status:
-	   Corrected error
-	   Error enabled
-	   MCi_ADDR register valid
-	   MCA: No Error
-	   STATUS 9400000000000000 MCGSTATUS 0
-	   MCGCAP 7000c16 APICID 2 SOCKETID 0
-	   CPUID Vendor Intel Family 6 Model 79
-	*/
-	MCE       uint8
-	CPU       uint8
-	BANK      uint8
-	MISC      uint16
-	ADDR      string // temporaly
-	TIME      uint32
-	TIMESTR   string
-	MCG       string
-	MCi       string
-	Corrected bool
-	Error     string //???enabled?
-	MCiMISC   string //???
-	MCiADDR   string //???
-	MCA       string
-	CACHE     string
-	STATUS    uint64
-	MCGSTATUS uint16
-	MCGCAP    string // temporaly
-	APICID    uint16
-	SOCKETID  uint8
-	CPUID     string
-	AsItIs    string // will be removed, for /everything
+type MceLogInfo struct {
+	data   map[string]string
+	TIME   uint32
+	AsItIs string
 }
 
-func (p *MCECollector) GetMceLog() ([]MceLogFormat, error) {
-	logs, err := parseMceLogByTime(p.LogPath, p.prevLogTimeStamp)
-	if err != nil {
-		return nil, err
+func NewMceLogInfo() *MceLogInfo {
+	return &MceLogInfo{
+		data:   map[string]string{},
+		TIME:   0,
+		AsItIs: "",
 	}
-	if len(logs) > 0 {
-		p.prevLogTimeStamp = logs[len(logs)-1].TIME
-	}
-	return logs, err
 }
 
-func parseMceLogByTime(path string, lastLogTime uint32) ([]MceLogFormat, error) {
+func IsSpecialSymbol(target string) bool {
+	// these symbols are not following "KEY VALUE" format
+	list := []string{
+		"TIME",
+		"MCG",
+		"MCi",
+		"Corrected",
+		"Uncorrected",
+		"Error",
+		"MCi_ADDR",
+		"MCA:",
+		"CPUID",
+	}
+	for _, val := range list {
+		if target == val {
+			return true
+		}
+	}
+	return false
+}
+
+func parseMceLogByTime(path string, lastLogTime uint32) ([]MceLogInfo, error) {
 	// TODO : return not string, but []???? for each log
 	file, err := os.Open(path)
 	if err != nil {
@@ -181,16 +184,16 @@ func parseMceLogByTime(path string, lastLogTime uint32) ([]MceLogFormat, error) 
 
 	start := false
 	sc := bufio.NewScanner(file)
-	mcelogs := []MceLogFormat{}
-	onelog := MceLogFormat{}
+	mcelogs := []MceLogInfo{}
+	onelog := NewMceLogInfo()
 	for sc.Scan() {
 		data := strings.TrimSpace(sc.Text())
 		// 1. separate each entry by "Hardware event. This is not a software error."
 		if data == "Hardware event. This is not a software error." {
 			if start {
-				mcelogs = append(mcelogs, onelog)
+				mcelogs = append(mcelogs, *onelog)
 			}
-			onelog = MceLogFormat{} // reset
+			onelog = NewMceLogInfo() // reset
 			onelog.AsItIs += data + "\n"
 			start = true
 			continue
@@ -202,102 +205,51 @@ func parseMceLogByTime(path string, lastLogTime uint32) ([]MceLogFormat, error) 
 		onelog.AsItIs += data + "\n"
 		dat := strings.Split(data, " ")
 		for i := 0; i < len(dat); i += 2 {
-			switch dat[i] {
-			case "MCE":
-				d, err := strconv.Atoi(dat[i+1])
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
-				}
-				onelog.MCE = uint8(d)
-			case "CPU":
-				d, err := strconv.Atoi(dat[i+1])
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
-				}
-				onelog.CPU = uint8(d)
-			case "BANK":
-				d, err := strconv.Atoi(dat[i+1])
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
-				}
-				onelog.BANK = uint8(d)
-			case "MISC":
-				d, err := strconv.Atoi(dat[i+1])
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
-				}
-				onelog.MISC = uint16(d)
-			case "ADDR":
-				onelog.ADDR = dat[i+1]
-			case "TIME":
-				d, err := strconv.Atoi(dat[i+1])
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
-				}
-				// 2. compare "TIME 1510397388 Sat Nov 11 19:49:48 2017" lines and previously saved.
-				logTime := uint32(d)
-				if logTime <= lastLogTime {
+			if IsSpecialSymbol(dat[i]) {
+				switch dat[i] {
+				case "TIME":
+					d, err := strconv.Atoi(dat[i+1])
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
+					}
+					// 2. compare "TIME 1510397388 Sat Nov 11 19:49:48 2017" lines and previously saved.
+					logTime := uint32(d)
+					if logTime <= lastLogTime {
+						start = false
+						break
+					}
+					onelog.TIME = logTime
+					onelog.data["TIMESTR"] = strings.Join(dat[i+1:i+6], " ")
+				case "Corrected":
+					onelog.data["Corrected"] = "true"
+				case "Uncorrected":
+					onelog.data["Corrected"] = "false"
+				case "CPUID":
+					// assumeing this is last line
+					onelog.data["CPUID"] = strings.Join(dat[i+1:], " ")
+					mcelogs = append(mcelogs, *onelog)
 					start = false
-					goto OUT
+				default:
+					fmt.Fprintf(os.Stdout, "%s not supported\n", dat[i])
 				}
-				onelog.TIME = logTime
-				onelog.TIMESTR = strings.Join(dat[i+1:i+6], " ")
-				goto OUT
-			case "Corrected":
-				onelog.Corrected = true
-			case "Uncorrected":
-				onelog.Corrected = false
-			case "STATUS":
-				d, err := strconv.Atoi(dat[i+1])
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
-				}
-				onelog.STATUS = uint64(d)
-			case "MCGSTATUS":
-				d, err := strconv.Atoi(dat[i+1])
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
-				}
-				onelog.MCGSTATUS = uint16(d)
-			case "MCGCAP":
-				onelog.MCGCAP = dat[i+1]
-			case "APICID":
-				d, err := strconv.Atoi(dat[i+1])
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
-				}
-				onelog.APICID = uint16(d)
-			case "SOCKETID":
-				d, err := strconv.Atoi(dat[i+1])
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s format error: %s\n", dat[i], dat[i+1])
-				}
-				onelog.SOCKETID = uint8(d)
-			case "CPUID":
-				// assumeing this is last line
-				onelog.CPUID = strings.Join(dat[i+1:], " ")
-				mcelogs = append(mcelogs, onelog)
-				start = false
-				goto OUT
-			case "MCA:":
-				onelog.MCA = strings.Join(dat[i+1:], " ")
-				goto OUT
-			case "Generic":
-				onelog.CACHE = strings.Join(dat[i+i:], " ")
-				goto OUT
-			case "MCi_ADDR":
-				onelog.MCiADDR = strings.Join(dat[i+1:], " ")
-				goto OUT
-			case "MCG":
-			case "MCi":
-			default:
-				fmt.Fprintf(os.Stdout, "%s not supported\n", dat[i])
+				break
+			} else {
+				onelog.data[dat[i]] = dat[i+1]
 			}
 		}
-	OUT:
 	}
-
 	return mcelogs, nil
+}
+
+func (p *MCECollector) GetMceLog() ([]MceLogInfo, error) {
+	logs, err := parseMceLogByTime(p.LogPath, p.prevLogTimeStamp)
+	if err != nil {
+		return nil, err
+	}
+	if len(logs) > 0 {
+		p.prevLogTimeStamp = logs[len(logs)-1].TIME
+	}
+	return logs, err
 }
 
 func (p *MCECollector) WasFileUpdated() (bool, error) {
