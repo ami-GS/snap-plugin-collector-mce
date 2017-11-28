@@ -51,7 +51,9 @@ Or as part of the task manifest
               "/ami-GS/mce/Corrected" : {}
             },
             "config": {
-              TBD
+              "/ami-GS/mce/" : {
+                "logpath" : "/my/custom/path"
+              }
             },
         ...
         },

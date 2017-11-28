@@ -42,7 +42,8 @@ type MCECollector struct {
 	// this is decided by mcelog process argument
 	availableMetrics []string
 	// this would be mceLog
-	LogPath string
+	LogPath     string
+	initialized bool
 }
 
 func (p *MCECollector) GetMetricTypes(_ plugin.Config) ([]plugin.Metric, error) {
@@ -71,6 +72,14 @@ func (p *MCECollector) GetMetricTypes(_ plugin.Config) ([]plugin.Metric, error) 
 
 func (p *MCECollector) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Metric, error) {
 	metrics := []plugin.Metric{}
+
+	if !p.initialized {
+		dat, ok := metricTypes[0].Config["logpath"]
+		if ok {
+			p.LogPath = dat.(string)
+		}
+		p.initialized = true
+	}
 
 	ok, err := p.WasFileUpdated()
 	if err != nil {
@@ -135,6 +144,7 @@ func New(logPath string) *MCECollector {
 		// TODO : check mcelog process argument, trigger script whether it is avairable metric
 		availableMetrics: metrics,
 		LogPath:          logPath,
+		initialized:      false,
 	}
 }
 
