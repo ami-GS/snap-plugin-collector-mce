@@ -11,27 +11,40 @@ import (
 )
 
 type MCEStreamCollector struct {
-	base *mce.MCECollector
+	base       *mce.MCECollector
+	rcvMetrics []plugin.Metric
 }
 
 func NewStream(logPath string) *MCEStreamCollector {
 	return &MCEStreamCollector{
 		mce.New(logPath),
+		nil,
 	}
 }
 
 func (p *MCEStreamCollector) StreamMetrics(ctx context.Context, metricsIn chan []plugin.Metric, metricsOut chan []plugin.Metric, err chan string) error {
-	p.messageSender(metricsIn, metricsOut, err)
+	go p.msgSender(metricsOut, err)
+	p.msgReceiver(metricsIn)
 	return nil
 }
 
-func (p *MCEStreamCollector) messageSender(metricsIn chan []plugin.Metric, metricsOut chan []plugin.Metric, errOut chan string) {
+func (p *MCEStreamCollector) msgReceiver(metricsIn chan []plugin.Metric) {
 	for {
-		recvMetrics, ok := <-metricsIn
-		if !ok {
-			// closed, return?
-			return
+		// TODO : this loop should check mcelog timestamp.
+		var mts []plugin.Metric
+		mts = <-metricsIn
+		p.rcvMetrics = mts
+	}
+}
+
+func (p *MCEStreamCollector) msgSender(metricsOut chan []plugin.Metric, errOut chan string) {
+	for {
+		if p.rcvMetrics == nil {
+			time.Sleep(time.Second)
+			continue
 		}
+		recvMetrics := p.rcvMetrics
+
 		if recvMetrics == nil {
 			// TODO : this time should be configurable
 			time.Sleep(time.Second)
