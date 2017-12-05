@@ -1,0 +1,12 @@
+version: 1
+schedule:
+  type: "streaming"
+workflow:
+  collect:
+    metrics:
+      /ami-GS/mce/Includes/CPU: {}
+    publish:
+      -
+          plugin_name: "file"
+          config:
+              file: "/tmp/published_mcelog.log"

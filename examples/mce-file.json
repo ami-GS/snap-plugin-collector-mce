@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "schedule": {
+    "type": "simple",
+    "interval": "5s"
+  },
+  "workflow": {
+    "collect": {
+      "metrics": {
+        "/ami-GS/mce/Includes/CPU": {}
+      },
+	"config": {
+	    "/ami-GS/mce": {
+		"logpath" : "/go/src/github.com/ami-GS/snap-plugin-collector-mce/testlog/mcelog2"
+	    }
+      },
+      "publish": [
+        {
+          "plugin_name": "file",
+          "config": {
+            "file": "/tmp/published_mce.log"
+          }
+        }
+      ]
+    }
+  }
+}
