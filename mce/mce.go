@@ -115,6 +115,10 @@ func StuffLogToMetrics(mceLogs []MceLogInfo, metricIn []plugin.Metric) (metricOu
 				data += val
 			}
 		}
+		// if no data, skip (this happens for older TIME data)
+		if len(data) == 0 {
+			continue
+		}
 		metric := plugin.Metric{
 			Namespace: ns,
 			Data:      data, // TODO : use appropriate telemetry
