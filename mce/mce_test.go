@@ -6,17 +6,37 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 var mceLogPrefix = "../testlog/"
 
-/*
 func TestGetMetricTypes(t *testing.T) {
-	Convey("if mcelog --daemon without any trigger setting enabled", t, func() {
+	vName := "ami-GS"
+	pName := "mce"
+	m := New(mceLogPrefix + "mcelog1")
+	allNameList := []string{
+		plugin.NewNamespace(vName, pName, MetricAll).String(),
+	}
+	for _, name := range AllMetricsNames {
+		if name == "Includes" {
+			for _, name2 := range AllMetricsNames {
+				allNameList = append(allNameList, plugin.NewNamespace(vName, pName, name, name2).String())
+			}
+		} else {
+			allNameList = append(allNameList, plugin.NewNamespace(vName, pName, name).String())
+		}
+	}
+	Convey("if nothing special, then returns default values", t, func() {
+		rVal, err := m.GetMetricTypes(nil)
+		So(err, ShouldBeNil)
+		for _, v := range rVal {
+			So(v.Namespace.String(), ShouldBeIn, allNameList)
+		}
 	})
 }
-*/
+
 func TestGetMceLog(t *testing.T) {
 	Convey("if this is first call (), then returns all parsed info", t, func() {
 		logfile := mceLogPrefix + "mcelog1"
@@ -80,20 +100,20 @@ func TestGetMceLog(t *testing.T) {
 		So(mcelogs[0].AsItIs, ShouldEqual, str)
 	})
 	/*
-		Convey("if several (>1) new logs come, return these info", t, func() {
-			m := New()
-			mcelogs, err := m.GetMceLog(mceLogPrefix+"mcelog2", m.prevLogTimeStamp)
-			So(err, ShouldBeNil)
-		})
-			Convey("AsItIs should have all log in mcelog file", t, func() {
+			Convey("if several (>1) new logs come, return these info", t, func() {
 				m := New()
-				mcelogs, _ := m.GetMceLog(mceLogPrefix+"mcelog1", m.prevLogTimeStamp)
-				file, err := op.Open(mceLogPrefix + "mcelog1")
-				if err != nil {
-				}
-				defer file.Close()
-				mcelogs[0].AsItIs
+		p		mcelogs, err := m.GetMceLog(mceLogPrefix+"mcelog2", m.prevLogTimeStamp)
+				So(err, ShouldBeNil)
 			})
+				Convey("AsItIs should have all log in mcelog file", t, func() {
+					m := New()
+					mcelogs, _ := m.GetMceLog(mceLogPrefix+"mcelog1", m.prevLogTimeStamp)
+					file, err := op.Open(mceLogPrefix + "mcelog1")
+					if err != nil {
+					}
+					defer file.Close()
+					mcelogs[0].AsItIs
+				})
 	*/
 }
 
