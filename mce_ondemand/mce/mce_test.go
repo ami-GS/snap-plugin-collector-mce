@@ -10,7 +10,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-var mceLogPrefix = "../testlog/"
+var mceLogPrefix = "/Users/daminaka/Go/src/github.com/ami-GS/snap-plugin-collector-mce/testlog/"
 
 func TestGetMetricTypes(t *testing.T) {
 	vName := "ami-GS"

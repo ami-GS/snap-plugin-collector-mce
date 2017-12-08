@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/ami-GS/snap-plugin-collector-mce/mce"
+	"github.com/ami-GS/snap-plugin-collector-mce/mce_ondemand/mce"
 	"github.com/go-fsnotify/fsnotify"
 	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin"
 )
