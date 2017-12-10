@@ -6,8 +6,9 @@ go:
 before_install:
   go get -t ./...
 install:
-- go build
+  - make
+  - make stream
 script:
-- go test -v ./mce 2>&1
+  - make test 2>&1
 notifications:
   email: false
