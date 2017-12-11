@@ -10,7 +10,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-var mceLogPrefix = "../../testlog"
+var mceLogPrefix = "../../testlog/"
 
 func TestGetMetricTypes(t *testing.T) {
 	vName := "ami-GS"
