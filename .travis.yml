@@ -3,11 +3,16 @@ language: go
 go:
 - 1.7.x
 - 1.8.x
+- 1.9.x
 before_install:
   go get -t ./...
 install:
   - make
   - make stream
+  - make TARGET_OS=linux
+  - make stream TARGET_OS=linux
+  - make TARGET_OS=darwin
+  - make stream TARGET_OS=darwin
 script:
   - make test 2>&1
 notifications:
