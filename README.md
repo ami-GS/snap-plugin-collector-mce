@@ -23,11 +23,11 @@ $ $GOPATH/bin/snap-plugin-collector-mce
 or
 
 ```
-$ git clone https://github.com/ami-GS/snap-plugin-collector-mcecollector
-$ cd snap-plugin-collector-mcecollector
+$ git clone https://github.com/ami-GS/snap-plugin-collector-mce
+$ cd snap-plugin-collector-mce
 $ go get -t ./...
-$ go build
-$ ./snap-plugin-collector-mce
+$ make #(or make stream)
+$ ./build/linux/x86_64/snap-plugin-collector-mce(-stream)
 ```
 
 ### Configuration and Usage
@@ -68,7 +68,7 @@ $ snapteld -t 0 -l 1
 # different terminal bellow
 $ wget  http://snap.ci.snap-telemetry.io/plugins/snap-plugin-publisher-file/latest/linux/x86_64/snap-plugin-publisher-file
 $ snaptel plugin load snap-plugin-publisher-file
-$ snaptel plugin load snap-plugin-collector-mcecollector
+$ snaptel plugin load snap-plugin-collector-mce
 $ snaptel task create -t mce-file.json
 ```
 
