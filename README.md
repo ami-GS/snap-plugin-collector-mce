@@ -78,6 +78,13 @@ Create a task manifest file
 TBD
 ```
 
+#### Try with docker
+```bash
+$ docker build . -t snap_collector_mce_env
+$ docker run -it --rm snap_collecotr_mce_env
+```
+Notice: Currently Snap(grpc) might have problem and this makes `docker build .` to be fail.
+
 ## Contributing
 I appreciate Any PR, any feature request!
 
