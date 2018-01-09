@@ -81,7 +81,16 @@ TBD
 #### Try with docker
 At the top of this repository,
 
+if you want to use only binary
 ```bash
+$ cd dockerfiles/use_binary/
+$ docker build . -t snap_collector_mce_env
+$ docker run -it --rm snap_collecotr_mce_env
+```
+
+if you want to use built from source
+```bash
+$ cd dockerfiles/build/
 $ docker build . -t snap_collector_mce_env
 $ docker run -it --rm snap_collecotr_mce_env
 ```

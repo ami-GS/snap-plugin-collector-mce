@@ -12,7 +12,6 @@ RUN apt-get update \
     && locale-gen en_US.UTF-8 \
     && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
     && locale-gen \
-    && cd $HOME \
     && rm -rf /var/lib/apt/lists/* \
     && go get -d github.com/intelsdi-x/snap \
     && make -C $GOPATH/src/github.com/intelsdi-x/snap \
@@ -24,6 +23,5 @@ RUN apt-get update \
     && make stream -C $GOPATH/src/github.com/ami-GS/snap-plugin-collector-mce \
     && cp $GOPATH/src/github.com/ami-GS/snap-plugin-collector-mce/build/Linux/x86_64/snap-plugin-collector-mce-stream $GOPATH/bin \
     && cp $GOPATH/src/github.com/ami-GS/snap-plugin-collector-mce/testlog/mcelog1 /var/log/mcelog \
-    && wget http://snap.ci.snap-telemetry.io/plugins/snap-plugin-publisher-file/latest/linux/x86_64/snap-plugin-publisher-file -P $GOPATH/bin/
 WORKDIR $GOPATH/bin/
 CMD tmux -2
